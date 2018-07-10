@@ -502,9 +502,8 @@ sub build_osx
 	mkpath ("$embeddir/$os");
 
 
-	# Create universal binaries
 	for my $file ('libmono.0.dylib','libmono.a','libMonoPosixHelper.dylib') {
-		system ('lipo', "$embeddir/$os-i386/$file", "$embeddir/$os-x86_64/$file", '-create', '-output', "$embeddir/$os/$file");
+		system ('cp', "$embeddir/$os-x86_64/$file", "$embeddir/$os/$file");
 	}
 
 	if (not $ENV{"UNITY_THISISABUILDMACHINE"})
