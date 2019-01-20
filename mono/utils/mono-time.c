@@ -68,6 +68,9 @@ mono_100ns_datetime (void)
 
 #include <time.h>
 
+/* a made up uptime of 300 seconds */
+#define MADEUP_BOOT_TIME (300 * MTICKS_PER_SEC)
+
 static gint64
 get_boot_time (void)
 {
@@ -98,14 +101,20 @@ get_boot_time (void)
 		fclose (uptime);
 	}
 #endif
-	/* a made up uptime of 300 seconds */
-	return (gint64)300 * MTICKS_PER_SEC;
+	return (gint64)MADEUP_BOOT_TIME;
 }
 
 /* Returns the number of milliseconds from boot time: this should be monotonic */
 guint32
 mono_msec_ticks (void)
 {
+#if defined(ANDROID)
+	struct timespec ts;
+	if (clock_gettime (CLOCK_MONOTONIC, &ts) != 0) {
+		return (gint64)MADEUP_BOOT_TIME;
+	}
+	return (ts.tv_sec * 1000) + (ts.tv_nsec / 1000000);
+#else
 	static gint64 boot_time = 0;
 	gint64 now;
 	if (!boot_time)
@@ -113,6 +122,7 @@ mono_msec_ticks (void)
 	now = mono_100ns_ticks ();
 	/*printf ("now: %llu (boot: %llu) ticks: %llu\n", (gint64)now, (gint64)boot_time, (gint64)(now - boot_time));*/
 	return (now - boot_time)/10000;
+#endif
 }
 
 /* Returns the number of 100ns ticks from unspecified time: this should be monotonic */
