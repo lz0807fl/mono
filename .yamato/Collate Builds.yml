@@ -25,9 +25,6 @@ triggers:
     only:
       - "unity-unity-2022.2-mbe"
   cancel_old_ci: true
-  recurring:
-    - branch: unity-unity-2022.2-mbe
-      frequency: daily # Should run between midnight and 6AM UTC
 
 artifacts: 
   builds:
