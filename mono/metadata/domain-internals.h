@@ -678,6 +678,7 @@ mono_runtime_init_checked (MonoDomain *domain, MonoThreadStartCB start_cb, MonoT
 void
 mono_context_init_checked (MonoDomain *domain, MonoError *error);
 
+UNITY_MONO_API
 gboolean
 mono_assembly_has_reference_assembly_attribute (MonoAssembly *assembly, MonoError *error);
 
