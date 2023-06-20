@@ -1063,8 +1063,8 @@ mono_gc_alloc_string (MonoVTable *vtable, size_t size, gint32 len)
 
 	obj->object.vtable = vtable;
 	obj->object.synchronisation = NULL;
+	memset(mono_object_get_data((MonoObject*)obj), 0, size - MONO_ABI_SIZEOF(MonoObject));
 	obj->length = len;
-	obj->chars [len] = 0;
 
 	if (G_UNLIKELY (mono_profiler_allocations_enabled ()))
 		MONO_PROFILER_RAISE (gc_allocation, (&obj->object));
