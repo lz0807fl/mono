@@ -11,6 +11,7 @@ dependencies:
 commands:
   - |
     cd ../../
+    git config --system core.longpaths true
     git clone git@github.cds.internal.unity3d.com:unity/prtools.git
     cd prtools
     git checkout main
