@@ -965,7 +965,6 @@ MONO_API void mono_unity_gc_set_mode(MonoGCMode mode)
 	}
 }
 
-// Deprecated. Remove when Unity has switched to mono_unity_gc_set_mode
 MONO_API void mono_unity_gc_enable()
 {
 #if HAVE_BOEHM_GC
@@ -975,7 +974,6 @@ MONO_API void mono_unity_gc_enable()
 #endif
 }
 
-// Deprecated. Remove when Unity has switched to mono_unity_gc_set_mode
 MONO_API void mono_unity_gc_disable()
 {
 #if HAVE_BOEHM_GC
