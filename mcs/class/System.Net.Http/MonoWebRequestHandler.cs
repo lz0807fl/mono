@@ -373,6 +373,8 @@ namespace System.Net.Http
 			if (timeout != null)
 				wr.Timeout = (int)timeout.Value.TotalMilliseconds;
 
+			wr.ServerCertificateValidationCallback = SslOptions.RemoteCertificateValidationCallback;
+
 			// Add request headers
 			var headers = wr.Headers;
 			foreach (var header in request.Headers) {
