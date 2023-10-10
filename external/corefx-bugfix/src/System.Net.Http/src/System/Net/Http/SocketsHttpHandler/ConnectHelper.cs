@@ -34,7 +34,7 @@ namespace System.Net.Http
             {
                 FromHttpClientHandler = fromHttpClientHandler;
                 ForSocketsHttpHandler = (object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) =>
-                    FromHttpClientHandler(sender as HttpRequestMessage, certificate as X509Certificate2, chain, sslPolicyErrors);
+                    FromHttpClientHandler(new HttpRequestMessage(HttpMethod.Get, (string)sender), certificate as X509Certificate2, chain, sslPolicyErrors);
             }
         }
 

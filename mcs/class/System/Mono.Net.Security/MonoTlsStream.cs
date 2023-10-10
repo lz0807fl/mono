@@ -34,6 +34,7 @@ using MonoSecurity::Mono.Security.Interface;
 #else
 using Mono.Security.Interface;
 #endif
+using MNS = Mono.Net.Security;
 #endif
 
 using System;
@@ -90,6 +91,13 @@ namespace Mono.Net.Security
 			this.networkStream = networkStream;
 
 			settings = request.TlsSettings;
+
+			if (settings == null && request.ServerCertificateValidationCallback != null)
+			{
+				settings = MonoTlsSettings.CopyDefaultSettings ();
+				settings.RemoteCertificateValidationCallback = MNS.Private.CallbackHelpers.PublicToMono(request.ServerCertificateValidationCallback);
+			}
+
 			provider = request.TlsProvider ?? MonoTlsProviderFactory.GetProviderInternal ();
 			status = WebExceptionStatus.SecureChannelFailure;
 
