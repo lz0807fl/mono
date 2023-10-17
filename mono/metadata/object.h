@@ -63,6 +63,12 @@ typedef struct {
 	gunichar2 chars [MONO_ZERO_LEN_ARRAY];
 } MonoString;
 
+typedef struct {
+	MonoObject object;
+	guint16 length;
+	gint8 chars [MONO_ZERO_LEN_ARRAY];
+} MonoHalfString;
+
 typedef MonoObject* (*MonoInvokeFunc)	     (MonoMethod *method, void *obj, void **params, MonoObject **exc);
 typedef gpointer    (*MonoCompileFunc)	     (MonoMethod *method);
 typedef void	    (*MonoMainThreadFunc)    (gpointer user_data);
@@ -143,6 +149,8 @@ mono_string_new_utf16	    (MonoDomain *domain, const guint16 *text, gint32 len);
 
 MonoString*
 mono_string_new_size	    (MonoDomain *domain, gint32 len);
+
+MonoHalfString* mono_halfstring_new_size(MonoClass* klass, gint32 len);
 
 MonoString*
 mono_ldstr		    (MonoDomain *domain, MonoImage *image, guint32 str_index);

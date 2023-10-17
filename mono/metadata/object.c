@@ -4516,6 +4516,31 @@ mono_string_new_size (MonoDomain *domain, gint32 len)
 	}
 }
 
+MonoHalfString* mono_halfstring_new_size(MonoClass* klass, gint32 len)
+{
+	MonoDomain *domain = mono_domain_get ();
+
+	MonoHalfString* s;
+	MonoVTable* vtable;
+	size_t size = sizeof(MonoHalfString) + (len + 1);
+
+	/* overflow ? can't fit it, can't allocate it! */
+	if (len > size || len > UINT16_MAX - 1)
+		mono_gc_out_of_memory(-1);
+
+	vtable = mono_class_vtable(domain, klass);
+	g_assert(vtable);
+
+	s = mono_object_allocate_ptrfree(size, vtable);
+
+	s->length = len;
+	s->chars[len] = 0;
+	if (G_UNLIKELY(profile_allocs))
+		mono_profiler_allocation((MonoObject*)s, klass);
+
+	return s;
+}
+
 /**
  * mono_string_new_len:
  * @text: a pointer to an utf8 string
