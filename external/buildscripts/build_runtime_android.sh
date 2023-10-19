@@ -70,7 +70,7 @@ CFLAGS="\
 -DHAVE_USR_INCLUDE_MALLOC_H -DPAGE_SIZE=0x1000 \
 -D_POSIX_PATH_MAX=256 -DS_IWRITE=S_IWUSR \
 -DHAVE_PTHREAD_MUTEX_TIMEDLOCK \
--fpic -g -funwind-tables \
+-fpic -O2 -funwind-tables \
 -ffunction-sections -fdata-sections"
 CXXFLAGS=$CFLAGS
 CPPFLAGS=$CFLAGS
