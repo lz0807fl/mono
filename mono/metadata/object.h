@@ -115,6 +115,9 @@ mono_array_addr_with_size   (MonoArray *array, int size, uintptr_t idx);
 #define mono_string_chars(s) ((gunichar2*)(s)->chars)
 #define mono_string_length(s) ((s)->length)
 
+#define mono_halfstring_chars(s) ((gint8*)(s)->chars)
+#define mono_halfstring_length(s) ((s)->length)
+
 MonoObject *
 mono_object_new		    (MonoDomain *domain, MonoClass *klass);
 
@@ -158,8 +161,12 @@ mono_ldstr		    (MonoDomain *domain, MonoImage *image, guint32 str_index);
 MonoString*
 mono_string_is_interned	    (MonoString *str);
 
+MonoHalfString* mono_halfstring_is_interned(MonoHalfString* str);
+
 MonoString*
 mono_string_intern	    (MonoString *str);
+
+MonoHalfString* mono_halfstring_intern(MonoHalfString* str);
 
 MonoString*
 mono_string_new		    (MonoDomain *domain, const char *text);
@@ -182,8 +189,12 @@ mono_string_from_utf16	    (gunichar2 *data);
 gboolean
 mono_string_equal           (MonoString *s1, MonoString *s2);
 
+gboolean mono_halfstring_equal(MonoHalfString * s1, MonoHalfString * s2);
+
 guint
 mono_string_hash            (MonoString *s);
+
+guint mono_halfstring_hash(MonoHalfString * s);
 
 int
 mono_object_hash            (MonoObject* obj);

@@ -196,6 +196,7 @@ struct _MonoDomain {
 #define MONO_DOMAIN_FIRST_GC_TRACKED env
 	MonoGHashTable     *env;
 	MonoGHashTable     *ldstr_table;
+	MonoGHashTable     *ldhalfstr_table;
 	/* hashtables for Reflection handles */
 	MonoGHashTable     *type_hash;
 	MonoGHashTable     *refobject_hash;

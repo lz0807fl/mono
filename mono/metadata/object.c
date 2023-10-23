@@ -83,6 +83,10 @@ mono_ldstr_metadata_sig (MonoDomain *domain, const char* sig);
 #define ldstr_unlock() LeaveCriticalSection (&ldstr_section)
 static CRITICAL_SECTION ldstr_section;
 
+#define ldhalfstr_lock() EnterCriticalSection (&ldhalfstr_section)
+#define ldhalfstr_unlock() LeaveCriticalSection (&ldhalfstr_section)
+static CRITICAL_SECTION ldhalfstr_section;
+
 static gboolean profile_allocs = TRUE;
 
 void
@@ -175,6 +179,7 @@ mono_type_initialization_init (void)
 	type_initialization_hash = g_hash_table_new (NULL, NULL);
 	blocked_thread_hash = g_hash_table_new (NULL, NULL);
 	InitializeCriticalSection (&ldstr_section);
+	InitializeCriticalSection (&ldhalfstr_section);
 }
 
 void
@@ -187,6 +192,7 @@ mono_type_initialization_cleanup (void)
 	DeleteCriticalSection (&type_initialization_section);
 #endif
 	DeleteCriticalSection (&ldstr_section);
+	DeleteCriticalSection (&ldhalfstr_section);
 }
 
 /**
@@ -4892,6 +4898,12 @@ typedef struct {
 	MonoString *res;
 } LDStrInfo;
 
+typedef struct {
+	MonoDomain* orig_domain;
+	MonoHalfString* ins;
+	MonoHalfString* res;
+} LDHalfStrInfo;
+
 static void
 str_lookup (MonoDomain *domain, gpointer user_data)
 {
@@ -4899,6 +4911,14 @@ str_lookup (MonoDomain *domain, gpointer user_data)
 	if (info->res || domain == info->orig_domain)
 		return;
 	info->res = mono_g_hash_table_lookup (domain->ldstr_table, info->ins);
+}
+
+static void halfstr_lookup(MonoDomain* domain, gpointer user_data)
+{
+	LDHalfStrInfo* info = user_data;
+	if (info->res || domain == info->orig_domain)
+		return;
+	info->res = mono_g_hash_table_lookup(domain->ldhalfstr_table, info->ins);
 }
 
 #ifdef HAVE_SGEN_GC
@@ -4917,6 +4937,24 @@ mono_string_get_pinned (MonoString *str)
 
 #else
 #define mono_string_get_pinned(str) (str)
+#endif
+
+#ifdef HAVE_SGEN_GC
+
+static MonoHalfString*
+mono_halfstring_get_pinned(MonoString* str)
+{
+	int size;
+	MonoHalfString* news;
+	size = sizeof(MonoHalfString) + (mono_halfstring_length(str) + 1);
+	news = mono_gc_alloc_pinned_obj(((MonoObject*)str)->vtable, size);
+	memcpy(mono_halfstring_chars(news), mono_halfstring_chars(str), mono_halfstring_length(str));
+	news->length = mono_halfstring_length(str);
+	return news;
+}
+
+#else
+#define mono_halfstring_get_pinned(str) (str)
 #endif
 
 static MonoString*
@@ -4959,6 +4997,47 @@ mono_string_is_interned_lookup (MonoString *str, int insert)
 	return NULL;
 }
 
+
+static MonoHalfString* mono_halfstring_is_interned_lookup(MonoHalfString* str, int insert)
+{
+	MonoGHashTable* ldhalfstr_table;
+	MonoHalfString* res;
+	MonoDomain* domain;
+
+	domain = ((MonoObject*)str)->vtable->domain;
+	ldhalfstr_table = domain->ldhalfstr_table;
+	ldhalfstr_lock();
+	if ((res = mono_g_hash_table_lookup(ldhalfstr_table, str))) {
+		ldhalfstr_unlock();
+		return res;
+	}
+	if (insert) {
+		str = mono_halfstring_get_pinned(str);
+		mono_g_hash_table_insert(ldhalfstr_table, str, str);
+		ldhalfstr_unlock();
+		return str;
+	}
+	else {
+		LDHalfStrInfo ldhalfstr_info;
+		ldhalfstr_info.orig_domain = domain;
+		ldhalfstr_info.ins = str;
+		ldhalfstr_info.res = NULL;
+
+		mono_domain_foreach(halfstr_lookup, &ldhalfstr_info);
+		if (ldhalfstr_info.res) {
+			/*
+			 * the string was already interned in some other domain:
+			 * intern it in the current one as well.
+			 */
+			mono_g_hash_table_insert(ldhalfstr_table, str, str);
+			ldhalfstr_unlock();
+			return str;
+		}
+	}
+	ldhalfstr_unlock();
+	return NULL;
+}
+
 /**
  * mono_string_is_interned:
  * @o: String to probe
@@ -4969,6 +5048,11 @@ MonoString*
 mono_string_is_interned (MonoString *o)
 {
 	return mono_string_is_interned_lookup (o, FALSE);
+}
+
+MonoHalfString* mono_halfstring_is_interned(MonoHalfString* o)
+{
+	return mono_halfstring_is_interned_lookup(o, FALSE);
 }
 
 /**
@@ -4983,6 +5067,12 @@ mono_string_intern (MonoString *str)
 {
 	return mono_string_is_interned_lookup (str, TRUE);
 }
+
+MonoHalfString* mono_halfstring_intern(MonoHalfString* str)
+{
+	return mono_halfstring_is_interned_lookup(str, TRUE);
+}
+
 
 /**
  * mono_ldstr:
