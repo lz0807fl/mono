@@ -9,7 +9,7 @@
 	url = https://github.com/lz0807fl/cecil.git
 [submodule "external/debian-snapshot"]
 	path = external/debian-snapshot
-	url = https://github.com/lz0807fl/mono-snapshot.git
+	url = https://github.com/lz0807fl/linux-packaging-mono-snapshot.git
 [submodule "external/rx"]
 	path = external/rx
 	url = https://github.com/lz0807fl/rx.git
