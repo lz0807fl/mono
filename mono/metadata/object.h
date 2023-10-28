@@ -9,6 +9,7 @@ MONO_BEGIN_DECLS
 typedef mono_byte MonoBoolean;
 
 typedef struct _MonoString MonoString;
+typedef struct _MonoHalfString MonoHalfString;
 typedef struct _MonoArray MonoArray;
 typedef struct _MonoReflectionMethod MonoReflectionMethod;
 typedef struct _MonoReflectionAssembly MonoReflectionAssembly;
@@ -126,6 +127,10 @@ mono_string_new_utf16	    (MonoDomain *domain, const mono_unichar2 *text, int32_
 MONO_RT_EXTERNAL_ONLY
 MONO_API MonoString*
 mono_string_new_size	    (MonoDomain *domain, int32_t len);
+
+MONO_RT_EXTERNAL_ONLY
+MONO_API MonoHalfString*
+mono_halfstring_new_size	(MonoClass* klass, int32_t len);
 
 MONO_RT_EXTERNAL_ONLY
 MONO_API MonoString*

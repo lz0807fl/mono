@@ -6118,6 +6118,59 @@ mono_string_new_size_checked (MonoDomain *domain, gint32 len, MonoError *error)
 }
 
 /**
+ * mono_halfstring_new_size:
+ * @text: a pointer to an ascii halfstring
+ * @len: the length of the halfstring
+ *
+ * Returns: A newly created halfstring object of @len
+ */
+MonoHalfString*
+mono_halfstring_new_size(MonoClass* klass, gint32 len)
+{
+	MonoError error;
+	MonoHalfString* str = mono_halfstring_new_size_checked(klass, len, &error);
+	mono_error_cleanup(&error);
+
+	return str;
+}
+
+MonoHalfString*
+mono_halfstring_new_size_checked(MonoClass* klass, gint32 len, MonoError* error)
+{
+	MONO_REQ_GC_UNSAFE_MODE;
+
+	MonoDomain* domain = mono_domain_get();
+
+	MonoHalfString* s;
+	MonoVTable* vtable;
+	size_t size;
+
+	mono_error_init(error);
+
+	/* check for overflow */
+	if (len < 0 || len > UINT16_MAX - 1)
+	{
+		mono_error_set_out_of_memory(error, "Could not allocate %i bytes", -1);
+		return NULL;
+	}
+
+	size = G_STRUCT_OFFSET(MonoHalfString, chars) + (len + 1);
+	g_assert(size > 0);
+
+	vtable = mono_class_vtable(domain, klass);
+	g_assert(vtable);
+
+	s = (MonoHalfString*)mono_gc_alloc_halfstring(vtable, size, len);
+
+	if (G_UNLIKELY(!s)) {
+		mono_error_set_out_of_memory(error, "Could not allocate %i bytes", size);
+		return NULL;
+	}
+
+	return s;
+}
+
+/**
  * mono_string_new_len:
  * @text: a pointer to an utf8 string
  * @length: number of bytes in @text to consider

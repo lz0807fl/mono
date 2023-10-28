@@ -754,6 +754,24 @@ mono_gc_alloc_string (MonoVTable *vtable, size_t size, gint32 len)
 }
 
 void*
+mono_gc_alloc_halfstring(MonoVTable* vtable, size_t size, gint32 len)
+{
+	MonoHalfString* obj = (MonoHalfString*)GC_MALLOC_ATOMIC(size);
+	if (G_UNLIKELY(!obj))
+		return NULL;
+
+	obj->object.vtable = vtable;
+	obj->object.synchronisation = NULL;
+	obj->length = len;
+	obj->chars[len] = 0;
+
+	if (G_UNLIKELY(mono_profiler_events & MONO_PROFILE_ALLOCATIONS))
+		mono_profiler_allocation(&obj->object);
+
+	return obj;
+}
+
+void*
 mono_gc_alloc_mature (MonoVTable *vtable, size_t size)
 {
 	return mono_gc_alloc_obj (vtable, size);

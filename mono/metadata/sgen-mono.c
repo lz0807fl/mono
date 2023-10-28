@@ -1841,6 +1841,46 @@ mono_gc_alloc_string (MonoVTable *vtable, size_t size, gint32 len)
 	return str;
 }
 
+void*
+mono_gc_alloc_halfstring(MonoVTable* vtable, size_t size, gint32 len)
+{
+	MonoHalfString* str;
+	TLAB_ACCESS_INIT;
+
+	if (!SGEN_CAN_ALIGN_UP(size))
+		return NULL;
+
+#ifndef DISABLE_CRITICAL_REGION
+	ENTER_CRITICAL_REGION;
+	str = (MonoHalfString*)sgen_try_alloc_obj_nolock(vtable, size);
+	if (str) {
+		/*This doesn't require fencing since EXIT_CRITICAL_REGION already does it for us*/
+		str->length = len;
+		EXIT_CRITICAL_REGION;
+		goto done;
+	}
+	EXIT_CRITICAL_REGION;
+#endif
+
+	LOCK_GC;
+
+	str = (MonoHalfString*)sgen_alloc_obj_nolock(vtable, size);
+	if (G_UNLIKELY(!str)) {
+		UNLOCK_GC;
+		return NULL;
+	}
+
+	str->length = len;
+
+	UNLOCK_GC;
+
+done:
+	if (G_UNLIKELY(mono_profiler_events & MONO_PROFILE_ALLOCATIONS))
+		mono_profiler_allocation(&str->object);
+
+	return str;
+}
+
 /*
  * Strings
  */

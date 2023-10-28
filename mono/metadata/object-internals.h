@@ -128,6 +128,12 @@ struct _MonoString {
 	mono_unichar2 chars [MONO_ZERO_LEN_ARRAY];
 };
 
+struct _MonoHalfString {
+	MonoObject object;
+	uint16_t length;
+	int8_t chars [MONO_ZERO_LEN_ARRAY];
+};
+
 #define mono_object_class(obj) (((MonoObject*)(obj))->vtable->klass)
 #define mono_object_domain(obj) (((MonoObject*)(obj))->vtable->domain)
 
@@ -1688,6 +1694,9 @@ mono_object_isinst_mbyref_checked   (MonoObject *obj, MonoClass *klass, MonoErro
 
 MonoString *
 mono_string_new_size_checked (MonoDomain *domain, gint32 len, MonoError *error);
+
+MonoHalfString*
+mono_halfstring_new_size_checked(MonoClass* klass, gint32 len, MonoError* error);
 
 MonoString*
 mono_ldstr_checked (MonoDomain *domain, MonoImage *image, uint32_t str_index, MonoError *error);

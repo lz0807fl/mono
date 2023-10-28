@@ -148,6 +148,7 @@ void* mono_gc_alloc_obj (MonoVTable *vtable, size_t size);
 void* mono_gc_alloc_vector (MonoVTable *vtable, size_t size, uintptr_t max_length);
 void* mono_gc_alloc_array (MonoVTable *vtable, size_t size, uintptr_t max_length, uintptr_t bounds_size);
 void* mono_gc_alloc_string (MonoVTable *vtable, size_t size, gint32 len);
+void* mono_gc_alloc_halfstring (MonoVTable *vtable, size_t size, gint32 len);
 void* mono_gc_alloc_mature (MonoVTable *vtable, size_t size);
 MonoGCDescriptor mono_gc_make_descr_for_string (gsize *bitmap, int numbits);
 
