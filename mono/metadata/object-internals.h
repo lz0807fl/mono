@@ -140,6 +140,9 @@ struct _MonoHalfString {
 #define mono_string_chars_fast(s) ((mono_unichar2*)(s)->chars)
 #define mono_string_length_fast(s) ((s)->length)
 
+#define mono_halfstring_chars_fast(s) ((int8_t*)(s)->chars)
+#define mono_halfstring_length_fast(s) ((s)->length)
+
 #define mono_array_length_fast(array) ((array)->max_length)
 #define mono_array_addr_with_size_fast(array,size,index) ( ((char*)(array)->vector) + (size) * (index) )
 
@@ -1649,6 +1652,9 @@ mono_monitor_is_il_fastpath_wrapper (MonoMethod *method);
 
 MonoString*
 mono_string_intern_checked (MonoString *str, MonoError *error);
+
+MonoHalfString*
+mono_halfstring_intern_checked (MonoHalfString *str, MonoError *error);
 
 char *
 mono_exception_get_native_backtrace (MonoException *exc);

@@ -74,6 +74,10 @@ static GENERATE_GET_CLASS_WITH_CACHE (activation_services, System.Runtime.Remoti
 #define ldstr_unlock() mono_os_mutex_unlock (&ldstr_section)
 static mono_mutex_t ldstr_section;
 
+#define ldhalfstr_lock() mono_os_mutex_lock (&ldhalfstr_section)
+#define ldhalfstr_unlock() mono_os_mutex_unlock (&ldhalfstr_section)
+static mono_mutex_t ldhalfstr_section;
+
 /**
  * mono_runtime_object_init:
  * @this_obj: the object to initialize
@@ -230,6 +234,7 @@ mono_type_initialization_init (void)
 	type_initialization_hash = g_hash_table_new (NULL, NULL);
 	blocked_thread_hash = g_hash_table_new (NULL, NULL);
 	mono_os_mutex_init_recursive (&ldstr_section);
+	mono_os_mutex_init_recursive (&ldhalfstr_section);
 }
 
 void
@@ -244,6 +249,7 @@ mono_type_initialization_cleanup (void)
 	type_initialization_hash = NULL;
 #endif
 	mono_os_mutex_destroy (&ldstr_section);
+	mono_os_mutex_destroy (&ldhalfstr_section);
 	g_hash_table_destroy (blocked_thread_hash);
 	blocked_thread_hash = NULL;
 
@@ -6670,6 +6676,12 @@ typedef struct {
 	MonoString *res;
 } LDStrInfo;
 
+typedef struct {
+	MonoDomain* orig_domain;
+	MonoHalfString* ins;
+	MonoHalfString* res;
+} LDHalfStrInfo;
+
 static void
 str_lookup (MonoDomain *domain, gpointer user_data)
 {
@@ -6679,6 +6691,17 @@ str_lookup (MonoDomain *domain, gpointer user_data)
 	if (info->res || domain == info->orig_domain)
 		return;
 	info->res = (MonoString *)mono_g_hash_table_lookup (domain->ldstr_table, info->ins);
+}
+
+static void
+halfstr_lookup (MonoDomain *domain, gpointer user_data)
+{
+	MONO_REQ_GC_UNSAFE_MODE;
+
+	LDHalfStrInfo *info = (LDHalfStrInfo *)user_data;
+	if (info->res || domain == info->orig_domain)
+		return;
+	info->res = (MonoHalfString *)mono_g_hash_table_lookup (domain->ldhalfstr_table, info->ins);
 }
 
 static MonoString*
@@ -6698,6 +6721,29 @@ mono_string_get_pinned (MonoString *str, MonoError *error)
 	if (news) {
 		memcpy (mono_string_chars (news), mono_string_chars (str), mono_string_length (str) * 2);
 		news->length = mono_string_length (str);
+	} else {
+		mono_error_set_out_of_memory (error, "Could not allocate %i bytes", size);
+	}
+	return news;
+}
+
+static MonoHalfString*
+mono_halfstring_get_pinned (MonoHalfString *str, MonoError *error)
+{
+	MONO_REQ_GC_UNSAFE_MODE;
+
+	mono_error_init (error);
+
+	/* We only need to make a pinned version of a halfstring if this is a moving GC */
+	if (!mono_gc_is_moving ())
+		return str;
+	int size;
+	MonoHalfString *news;
+	size = sizeof (MonoHalfString) + (mono_halfstring_length (str) + 1);
+	news = (MonoHalfString *)mono_gc_alloc_pinned_obj (((MonoObject*)str)->vtable, size);
+	if (news) {
+		memcpy (mono_halfstring_chars (news), mono_halfstring_chars (str), mono_halfstring_length (str));
+		news->length = mono_halfstring_length (str);
 	} else {
 		mono_error_set_out_of_memory (error, "Could not allocate %i bytes", size);
 	}
@@ -6760,6 +6806,62 @@ mono_string_is_interned_lookup (MonoString *str, int insert, MonoError *error)
 	return NULL;
 }
 
+static MonoHalfString*
+mono_halfstring_is_interned_lookup (MonoHalfString *str, int insert, MonoError *error)
+{
+	MONO_REQ_GC_UNSAFE_MODE;
+
+	MonoGHashTable *ldhalfstr_table;
+	MonoHalfString *s, *res;
+	MonoDomain *domain;
+	
+	mono_error_init (error);
+
+	domain = ((MonoObject *)str)->vtable->domain;
+	ldhalfstr_table = domain->ldhalfstr_table;
+	ldhalfstr_lock ();
+	res = (MonoHalfString *)mono_g_hash_table_lookup (ldhalfstr_table, str);
+	if (res) {
+		ldhalfstr_unlock ();
+		return res;
+	}
+	if (insert) {
+		/* Allocate outside the lock */
+		ldhalfstr_unlock ();
+		s = mono_halfstring_get_pinned (str, error);
+		return_val_if_nok (error, NULL);
+		if (s) {
+			ldhalfstr_lock ();
+			res = (MonoHalfString *)mono_g_hash_table_lookup (ldhalfstr_table, str);
+			if (res) {
+				ldhalfstr_unlock ();
+				return res;
+			}
+			mono_g_hash_table_insert (ldhalfstr_table, s, s);
+			ldhalfstr_unlock ();
+		}
+		return s;
+	} else {
+		LDHalfStrInfo ldhalfstr_info;
+		ldhalfstr_info.orig_domain = domain;
+		ldhalfstr_info.ins = str;
+		ldhalfstr_info.res = NULL;
+
+		mono_domain_foreach (halfstr_lookup, &ldhalfstr_info);
+		if (ldhalfstr_info.res) {
+			/* 
+			 * the string was already interned in some other domain:
+			 * intern it in the current one as well.
+			 */
+			mono_g_hash_table_insert (ldhalfstr_table, str, str);
+			ldhalfstr_unlock ();
+			return str;
+		}
+	}
+	ldhalfstr_unlock ();
+	return NULL;
+}
+
 /**
  * mono_string_is_interned:
  * @o: String to probe
@@ -6771,6 +6873,16 @@ mono_string_is_interned (MonoString *o)
 {
 	MonoError error;
 	MonoString *result = mono_string_is_interned_lookup (o, FALSE, &error);
+	/* This function does not fail. */
+	mono_error_assert_ok (&error);
+	return result;
+}
+
+MonoHalfString*
+mono_halfstring_is_interned (MonoHalfString *o)
+{
+	MonoError error;
+	MonoHalfString *result = mono_halfstring_is_interned_lookup (o, FALSE, &error);
 	/* This function does not fail. */
 	mono_error_assert_ok (&error);
 	return result;
@@ -6792,6 +6904,15 @@ mono_string_intern (MonoString *str)
 	return result;
 }
 
+MonoHalfString*
+mono_halfstring_intern (MonoHalfString *str)
+{
+	MonoError error;
+	MonoHalfString *result = mono_halfstring_intern_checked (str, &error);
+	mono_error_assert_ok (&error);
+	return result;
+}
+
 /**
  * mono_string_intern_checked:
  * @o: String to intern
@@ -6808,6 +6929,16 @@ mono_string_intern_checked (MonoString *str, MonoError *error)
 	mono_error_init (error);
 
 	return mono_string_is_interned_lookup (str, TRUE, error);
+}
+
+MonoHalfString*
+mono_halfstring_intern_checked (MonoHalfString *str, MonoError *error)
+{
+	MONO_REQ_GC_UNSAFE_MODE;
+
+	mono_error_init (error);
+
+	return mono_halfstring_is_interned_lookup (str, TRUE, error);
 }
 
 /**
@@ -8367,6 +8498,14 @@ mono_string_chars (MonoString *s)
 	return s->chars;
 }
 
+gint8 *
+mono_halfstring_chars (MonoHalfString *s)
+{
+	// MONO_REQ_GC_UNSAFE_MODE; //FIXME too much trouble for now
+
+	return s->chars;
+}
+
 /**
  * mono_string_length:
  * @s: MonoString
@@ -8375,6 +8514,14 @@ mono_string_chars (MonoString *s)
  */
 int
 mono_string_length (MonoString *s)
+{
+	MONO_REQ_GC_UNSAFE_MODE;
+
+	return s->length;
+}
+
+int
+mono_halfstring_length (MonoHalfString *s)
 {
 	MONO_REQ_GC_UNSAFE_MODE;
 

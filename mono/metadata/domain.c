@@ -286,6 +286,20 @@ mono_string_equal (MonoString *s1, MonoString *s2)
 	return memcmp (mono_string_chars (s1), mono_string_chars (s2), l1 * 2) == 0; 
 }
 
+gboolean
+mono_halfstring_equal(MonoHalfString* s1, MonoHalfString* s2)
+{
+	int l1 = mono_halfstring_length(s1);
+	int l2 = mono_halfstring_length(s2);
+
+	if (s1 == s2)
+		return TRUE;
+	if (l1 != l2)
+		return FALSE;
+
+	return memcmp(mono_halfstring_chars(s1), mono_halfstring_chars(s2), l1) == 0;
+}
+
 /**
  * mono_string_hash:
  * @s: the string to hash
@@ -306,6 +320,21 @@ mono_string_hash (MonoString *s)
 	}
 
 	return h;	
+}
+
+guint
+mono_halfstring_hash(MonoHalfString* s)
+{
+	const gint8* p = mono_halfstring_chars(s);
+	int i, len = mono_halfstring_length(s);
+	guint h = 0;
+
+	for (i = 0; i < len; i++) {
+		h = (h << 5) - h + *p;
+		p++;
+	}
+
+	return h;
 }
 
 static gboolean
@@ -457,6 +486,7 @@ mono_domain_create (void)
 	domain->static_data_array = NULL;
 	mono_jit_code_hash_init (&domain->jit_code_hash);
 	domain->ldstr_table = mono_g_hash_table_new_type ((GHashFunc)mono_string_hash, (GCompareFunc)mono_string_equal, MONO_HASH_KEY_VALUE_GC, MONO_ROOT_SOURCE_DOMAIN, "domain string constants table");
+	domain->ldhalfstr_table = mono_g_hash_table_new_type ((GHashFunc)mono_halfstring_hash, (GCompareFunc)mono_halfstring_equal, MONO_HASH_KEY_VALUE_GC, MONO_ROOT_SOURCE_DOMAIN, "domain halfstring constants table");
 	domain->num_jit_info_tables = 1;
 	domain->jit_info_table = mono_jit_info_table_new (domain);
 	domain->jit_info_free_queue = NULL;
@@ -1104,6 +1134,9 @@ mono_domain_free (MonoDomain *domain, gboolean force)
 	 */
 	mono_g_hash_table_destroy (domain->ldstr_table);
 	domain->ldstr_table = NULL;
+
+	mono_g_hash_table_destroy (domain->ldhalfstr_table);
+	domain->ldhalfstr_table = NULL;
 
 	mono_g_hash_table_destroy (domain->env);
 	domain->env = NULL;

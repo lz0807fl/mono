@@ -70,6 +70,9 @@ typedef void	    (*MonoMainThreadFunc)    (void* user_data);
 MONO_API mono_unichar2 *mono_string_chars  (MonoString *s);
 MONO_API int            mono_string_length (MonoString *s);
 
+MONO_API int8_t *		mono_halfstring_chars  (MonoHalfString *s);
+MONO_API int            mono_halfstring_length (MonoHalfString *s);
+
 MONO_RT_EXTERNAL_ONLY MONO_API MonoObject *
 mono_object_new		    (MonoDomain *domain, MonoClass *klass);
 
@@ -139,9 +142,16 @@ mono_ldstr		    (MonoDomain *domain, MonoImage *image, uint32_t str_index);
 MONO_API MonoString*
 mono_string_is_interned	    (MonoString *str);
 
+MONO_API MonoHalfString*
+mono_halfstring_is_interned (MonoHalfString *str);
+
 MONO_RT_EXTERNAL_ONLY
 MONO_API MonoString*
 mono_string_intern	    (MonoString *str);
+
+MONO_RT_EXTERNAL_ONLY
+MONO_API MonoHalfString*
+mono_halfstring_intern (MonoHalfString *str);
 
 MONO_API MonoString*
 mono_string_new		    (MonoDomain *domain, const char *text);
@@ -181,8 +191,14 @@ mono_string_from_utf32	    (mono_unichar4 *data);
 MONO_API mono_bool
 mono_string_equal           (MonoString *s1, MonoString *s2);
 
+MONO_API mono_bool
+mono_halfstring_equal       (MonoHalfString *s1, MonoHalfString *s2);
+
 MONO_API unsigned int
 mono_string_hash            (MonoString *s);
+
+MONO_API unsigned int
+mono_halfstring_hash        (MonoHalfString *s);
 
 MONO_API int
 mono_object_hash            (MonoObject* obj);
